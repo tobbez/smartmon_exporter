@@ -30,15 +30,20 @@ def get_devices():
 
 
 def get_device_info(device_data):
-  return {
+  info = {
       'device': device_data['device']['name'],
       'type': device_data['device']['type'],
       'protocol': device_data['device']['protocol'],
-      'model_family': device_data['model_family'],
       'serial_number': device_data['serial_number'],
       'wwn': '{:x} {:06x} {:09x}'.format(device_data['wwn']['naa'], device_data['wwn']['oui'], device_data['wwn']['id']) if 'wwn' in device_data else '',
       'firmware_version': device_data['firmware_version'],
   }
+  if 'model_family' in device_data:
+    # Not present for:
+    # - Drives absent from smartmontools' drive database
+    # - NVME drives
+    info['model_family'] = device_data['model_family']
+  return info
 
 
 def dig(data, path):
