@@ -133,8 +133,7 @@ def gen_attr_metrics():
 def get_device_metrics(dev, info_metric, info_metric_labels, metrics, attr_metrics):
   d = smartctl('--all', dev)
 
-  info = get_device_info(d)
-  info_metric.add_metric([info[l] for l in info_metric_labels], 1)
+  info_metric.add_sample('smartmon_device_info', get_device_info(d), 1)
 
   for m, path, transform in metrics:
     m.add_metric([dev], transform(dig(d, path)))
@@ -158,11 +157,7 @@ class SmartmonCollector:
       'wwn',
       'firmware_version',
     ]
-    dev_info_metric = GaugeMetricFamily(
-      'smartmon_device_info',
-      'S.M.A.R.T. device information',
-      labels=dev_info_labels,
-    )
+    dev_info_metric = InfoMetricFamily('smartmon_device', 'S.M.A.R.T. device information')
 
     metrics = gen_metrics()
     attr_metrics = gen_attr_metrics()
