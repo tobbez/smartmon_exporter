@@ -6,14 +6,7 @@ import subprocess
 import time
 
 from prometheus_client import start_http_server
-from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily, REGISTRY
-
-
-def new_metric_with_labels_and_value(metric, name, documentation, labels, value):
-  assert isinstance(labels, dict)
-  m = metric(name, documentation, labels=labels.keys())
-  m.add_metric(labels.values(), value)
-  return m
+from prometheus_client.core import InfoMetricFamily, GaugeMetricFamily, CounterMetricFamily, REGISTRY
 
 
 def smartctl(*flags):
@@ -154,13 +147,7 @@ def get_device_metrics(dev, info_metric, info_metric_labels, metrics, attr_metri
 
 class SmartmonCollector:
   def collect(self):
-    yield new_metric_with_labels_and_value(
-        GaugeMetricFamily,
-        'smartmon_info',
-        'smartmontools information',
-        labels=get_smartctl_version_info(),
-        value=1,
-    )
+    yield InfoMetricFamily('smartmon', 'smartmontools information', get_smartctl_version_info())
 
     dev_info_labels = [
       'device',
