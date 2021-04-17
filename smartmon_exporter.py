@@ -135,7 +135,37 @@ def gen_attr_metrics():
   return {i: (a['type']('smartmon_' + a['name'], a.get('doc', a['name']), labels=['device']), a['path'], a.get('transform', lambda x: x)) for i, a in attrs.items()}
 
 
-def get_device_metrics(dev, info_metric, info_metric_labels, metrics, attr_metrics):
+def identity(x):
+  return x
+
+
+def gen_nvme_metrics():
+  nvme_metrics = [
+    # metric name, metric type, smartctl name, help, transform
+    ('temperature_celsius', GaugeMetricFamily, 'temperature', 'temperature_celsius', identity),
+    ('nvme_available_spare_ratio', GaugeMetricFamily, 'available_spare', None, lambda x: x/100),
+    ('nvme_available_spare_threshold_ratio', GaugeMetricFamily, 'available_spare_threshold', None, lambda x: x/100),
+    ('nvme_used_ratio', GaugeMetricFamily, 'percentage_used', None, lambda x: x/100),
+    # the factor in the units_{read,written} transform is hardcoded in smartmontools' text output
+    ('nvme_data_units_read_bytes', CounterMetricFamily, 'data_units_read', 'NVME Data Units Read, converted to bytes (1 unit=512000 bytes)', lambda x: x*1000*512),
+    ('nvme_data_units_written_bytes', CounterMetricFamily, 'data_units_written', 'NVME Data Units Written, converted to bytes (1 unit=512000 bytes)', lambda x: x*1000*512),
+    ('nvme_host_reads', CounterMetricFamily, 'host_reads', 'NVME Host Read Commands', identity),
+    ('nvme_host_writes', CounterMetricFamily, 'host_writes', 'NVME Host Write Commands', identity),
+    ('nvme_controller_busy_time', CounterMetricFamily, 'controller_busy_time', None, identity),
+    ('power_cycles_total', CounterMetricFamily, 'power_cycles', 'power_cycles_total', identity),
+    ('power_on_hours', CounterMetricFamily, 'power_on_hours', 'power_on_hours', identity),
+    ('nvme_unsafe_shutdowns', CounterMetricFamily, 'unsafe_shutdowns', None, identity),
+    ('nvme_media_errors', CounterMetricFamily, 'media_errors', None, identity),
+    ('nvme_num_err_log_entries', CounterMetricFamily, 'num_err_log_entries', None, identity),
+
+  ]
+  generated = []
+  for name, type_, key, help_, transform in nvme_metrics:
+    generated.append([type_(f'smartmon_{name}', help_ if help_ is not None else name, labels=['device']), key, transform])
+  return generated
+
+
+def get_device_metrics(dev, info_metric, info_metric_labels, metrics, attr_metrics, nvme_metrics):
   d = smartctl('--all', dev)
 
   info_metric.add_sample('smartmon_device_info', get_device_info(d), 1)
@@ -143,10 +173,14 @@ def get_device_metrics(dev, info_metric, info_metric_labels, metrics, attr_metri
   for m, path, transform in metrics:
     m.add_metric([dev], transform(dig(d, path)))
 
-  for attr in d['ata_smart_attributes']['table']:
-    if attr['id'] in attr_metrics:
-      m, path, transform = attr_metrics[attr['id']]
-      m.add_metric([dev], transform(dig(attr, path)))
+  if 'nvme_smart_health_information_log' in d:
+    for m, key, transform in nvme_metrics:
+      m.add_metric([dev], transform(d['nvme_smart_health_information_log'][key]))
+  else:
+    for attr in d['ata_smart_attributes']['table']:
+      if attr['id'] in attr_metrics:
+        m, path, transform = attr_metrics[attr['id']]
+        m.add_metric([dev], transform(dig(attr, path)))
 
 
 class SmartmonCollector:
@@ -166,13 +200,15 @@ class SmartmonCollector:
 
     metrics = gen_metrics()
     attr_metrics = gen_attr_metrics()
+    nvme_metrics = gen_nvme_metrics()
 
     for dev in get_devices():
-      get_device_metrics(dev, dev_info_metric, dev_info_labels, metrics, attr_metrics)
+      get_device_metrics(dev, dev_info_metric, dev_info_labels, metrics, attr_metrics, nvme_metrics)
 
     yield dev_info_metric
     yield from (x[0] for x in metrics)
     yield from (x[0] for x in attr_metrics.values())
+    yield from (x[0] for x in nvme_metrics)
 
 
 if __name__ == '__main__':
