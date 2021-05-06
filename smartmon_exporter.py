@@ -132,6 +132,11 @@ def gen_attr_metrics():
       'type': CounterMetricFamily,
       'path': ('raw', 'value'),
     },
+    199: {
+      'name': 'udma_crc_error_total',
+      'type': CounterMetricFamily,
+      'path': ('raw', 'value'),
+    },
   }
   return {i: (a['type']('smartmon_' + a['name'], a.get('doc', a['name']), labels=['device']), a['path'], a.get('transform', lambda x: x)) for i, a in attrs.items()}
 
