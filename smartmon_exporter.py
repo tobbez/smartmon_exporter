@@ -3,6 +3,7 @@
 import json
 import operator
 import subprocess
+import argparse
 import time
 
 from prometheus_client import start_http_server
@@ -212,7 +213,15 @@ class SmartmonCollector:
 
 
 if __name__ == '__main__':
+
+  parser = argparse.ArgumentParser(description='Prometheus exporter for S.M.A.R.T. metrics.')
+  parser.add_argument('-p', metavar='http_port', type=int, default=9541,
+                      help='HTTP port for Prometheus scrapper to listen, default 9541')
+  parser.add_argument('-i', metavar='bind_to_ip', type=str, default="",
+                        help='IP address for Prometheus scrapper to listen, default all interfaces')
+  args = vars(parser.parse_args())
+
   REGISTRY.register(SmartmonCollector())
-  start_http_server(9541)
+  start_http_server(args['p'], addr=args['i'])
   while True:
     time.sleep(60)
