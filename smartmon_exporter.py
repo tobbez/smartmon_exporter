@@ -218,15 +218,12 @@ class SmartmonCollector:
 
 
 if __name__ == '__main__':
-
   parser = argparse.ArgumentParser(description='Prometheus exporter for S.M.A.R.T. metrics.')
-  parser.add_argument('-p', metavar='http_port', type=int, default=9541,
-                      help='HTTP port for Prometheus scrapper to listen, default 9541')
-  parser.add_argument('-i', metavar='bind_to_ip', type=str, default="",
-                        help='IP address for Prometheus scrapper to listen, default all interfaces')
-  args = vars(parser.parse_args())
+  parser.add_argument('--listen-address', '-a', metavar='ADDRESS', type=str, default='', help='Address the exporter should listen on. Default: all')
+  parser.add_argument('--listen-port', '-p', metavar='PORT', type=int, default=9541, help='Port the exporter should listen on. Default: 9541')
+  args = parser.parse_args()
 
   REGISTRY.register(SmartmonCollector())
-  start_http_server(args['p'], addr=args['i'])
+  start_http_server(args.listen_port, args.listen_address)
   while True:
     time.sleep(60)
